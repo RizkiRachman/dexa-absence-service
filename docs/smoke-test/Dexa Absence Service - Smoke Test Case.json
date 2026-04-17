@@ -1,0 +1,1990 @@
+{
+  "info": {
+    "_postman_id": "9139f430-ad29-4eec-96fb-7a0ab6f517c0",
+    "name": "Dexa Absence Service - Smoke Test Case",
+    "description": "Smoke tests for Dexa Absence Service API.\n\nRun order:\n1. Auth / Login\n2. Employee / Get My Profile\n3. Employee / List Employees (HR only)\n4. Employee / Create Employee (HR only)\n5. Employee / Update My Profile\n6. Attendance / Create Check-in or Check-out\n7. Leave Request / Create Leave Request",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "6109572"
+  },
+  "item": [
+    {
+      "name": "Case 1 - Admin - Feature Check",
+      "item": [
+        {
+          "name": "Login as admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('validate status code', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('validate response', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('token');",
+                  "    pm.expect(body).to.have.property('user');",
+                  "    pm.expect(body.user).to.have.property('employeeId');",
+                  "",
+                  "});",
+                  "",
+                  "pm.test('validate email', function () {",
+                  "    const expected = pm.collectionVariables.get('admin_login_email');",
+                  "    const result = pm.collectionVariables.get('admin_email');",
+                  "    pm.expect(expected).to.equal(result);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('admin_token', body.token);",
+                  "pm.collectionVariables.set('admin_user_id', body.user.id);",
+                  "pm.collectionVariables.set('admin_employee_id', body.user.employeeId);",
+                  "pm.collectionVariables.set('admin_email', body.user.email);",
+                  "pm.collectionVariables.set('admin_role', body.user.role);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_login_email}}\",\n  \"password\": \"{{admin_login_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Stores token, user_id, employee_id, email, role into collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Get admin profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response has employee fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('name');",
+                  "    pm.expect(body).to.have.property('email');",
+                  "    pm.expect(body).to.have.property('position');",
+                  "});",
+                  "",
+                  "pm.test('returned id matches stored employee_id', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.eql(pm.collectionVariables.get('admin_employee_id'));",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('employee_name',     body.name);",
+                  "pm.collectionVariables.set('employee_position', body.position);",
+                  "console.log('Profile:', body.name, '|', body.position);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees/{{admin_employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{admin_employee_id}}"
+              ]
+            },
+            "description": "Requires: token, employee_id (set by Login)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get all employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response has data array and meta', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('meta');",
+                  "    pm.expect(body.meta).to.have.all.keys(",
+                  "        'page', 'limit', 'totalItems', 'totalPages', 'hasNextPage', 'hasPrevPage'",
+                  "    );",
+                  "});",
+                  "",
+                  "pm.test('each employee has required fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    body.data.forEach(function (emp) {",
+                  "        pm.expect(emp).to.have.property('id');",
+                  "        pm.expect(emp).to.have.property('name');",
+                  "        pm.expect(emp).to.have.property('email');",
+                  "    });",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Total employees:', body.meta.totalItems);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "HR only. Returns 403 if logged in as employee role."
+          },
+          "response": []
+        },
+        {
+          "name": "Update admin profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response has updated employee fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('phoneNumber');",
+                  "});",
+                  "",
+                  "pm.test('id matches stored employee_id', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.eql(pm.collectionVariables.get('admin_employee_id'));",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Updated phone ->', body.phoneNumber);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{$randomPhoneNumber}}\",\n  \"profilePic\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJQAAACUCAMAAABC4vDmAAAA9lBMVEX///8AAAAAt+zW7/v/2GbuTnHNzc0Avvbc9v4AbIscISP/4mvp6ek8Mxj6UndvJDWBgYH41WVpWCpXSiNFFyGbgz7dSWmfNEvP5/K1y9IKCwwAm8gAseQACQv/3GiysrJhYWEAXnkYGBienp7LQmDi/P/G3egAd5oAQFJFTVF1g4oAp9fy8vJAQEBNTU0xEBeRkZEaCAxUHCgoIRBNQR8vNDeqkESQoahVX2Q3PUGdr7ipvcYAjLSBkJcAgaYoKCi7PVmGLD8iCBC0o0p/bzLex1rHqlB0Yi4ZFAnUuFe7nktzc3MyKhRpdXsAMD0AUGgAIy4AFx8EqZ9KAAAHtElEQVR4nO2ceVvqOhCHLS4E4bBcBQtqQRQUxeUgiILruQrHXb//l7lttqZLmgab6n2e/v6xQtq8zEwmk0A7N5coUaJEiRIl+oHqdnPq1J2FKFcvNm40ZaodFus5SRvVj5rqgIiWizJY9SP1RFA3S6EdFxeSpe1wTEsKI2lWqm27/fFqr6BKvWPSSwgP1ilS4bayuJhXpcXKLcY6EiYHwvT7rpJfVKt8voD6OhEw5QjTjmokKEwVzNTF464QB5Gl4xBRhZ3Xi4spvwb7KwZCIaZV54lmTIaRfcIiE46Ck3Z+Wx02Qhhqh0WqrBV6q2HUw2GYX+ut3mGqSkF0Vs3qsNko1gURtWZ/zvxOL3wW/A2Nlb9lglLibI0zDy7BN49tR1TuJC6qabfw08ARtQovsvNH5vSBr7WQ9+6ooSrHgsu49G/W0r112C9Zhw+nchfwS1gN+A6NqIrU59S0X6UFU8bEOi4b8HgqdwW/YQiD7o/XTqcr/4TQfQmCLGQn02k5Cw8XjPI0zKn9v6Qr7+wMX+4R793hdiuTh1IYGYjJJFkokcMFI9SppYezX6izmifa4cs4pPI72EqTLO1NnQwcij4pywGFRvPLY1Y5EcIyyshU7ikHvrqGnIdSrRYXk6lsH/boHoEsFJqUpuo9R2VMYLg3unwoVFRMXFBGVqGMFei/AKhVlHlYKMMoPU37v9QJJYbB4WGDWRGyUDCk+qyVsg/3Uonwa3pe8oGCxyuMoYyzGJEsFXlQjJ3iNBNSQwSFs8g3UPGhjCfasrmsXLSvkyAow8CtOuM2UK/58TnuLxcAlcXOu5oH83EIzA9Rh8UAqBJMa9p+KxYkSy1EdZjjQhmPMK0N2rExmUIeXOJDTZDz4vEdEhjBPre5UFmUN0dxQs1X8fjjQqE4r8YKpddQpCdQCdT/GQro7Wq1rfMvGTsUaA/x7HY+5HHFDjUcaFQXQ//Lxg11rjl0rn8/lO5iMifVb4cCHibTVt8MhSdaTXuZlsvTF/yPT1zFCdXGMV6Gu2olUvp7G8YJhUvKpyzaVctOeKaKCgqIqVsXyE503wRf2xtVUUABvToajsai4lSHVzpdsFe5JbjZsuw58etQQL9CsTJ4bQeaqw1bTZkNJgOtcquRQ4GR/b1l7SoIagzbnDFQuKwdRw2Flx5EQ/6iB8QGBV41p/b5HvRxX1mF+zxMvrmQdAXfP2V2c1Cg16KF0juY5C1zubuHj7mrMZwSzigV9p53Uv4CFGgTpveNdDqd2hLYClzBt/+SDd7sY43j8S9AVYnHMumUpXRGQEWmmTM0zZCdOG/1MjNUa9x0MplUxFacpSs2lab1y09P9yv4H5+hMSsUoKngkjCZEngQEH8zirB0ae37MaVS7/jVsT9V+8LNVPObnGaEIqng7cDBZNvK34NAd9kqynKYVJB7bqZUCmeGGsdW+hWDxJuWZoAC1Al7KQ+T7UFOtLf0K2ytzr7OmZTkoQAZ2dq7l8jSG3q3yZ2a9Op4NBpX+atRaShAU8GWj5lYDzY5HhRLFgqMCNM1BymV2sC2Wp61iJaEovnv85JnJ1MHe1+jkoSi6Wk9gMm01QdqNZiNSg6KpKePYCbTVsSDwRXyvLXiAC13GxkoWhXsbQQjWbb6RE0vBFTVq9fO+dBVUYWHstPTlhDJ1DqmGgRQgTH5mJ1xaxYoUG3KMKXSB0Jb6Wzd+qrLQ7XGNXz2riCcKNX6Jqbyz5KtqnN27tiDIiwU2ZvYvA7JxFB1fGfdYU1zqkYnpnBQtXNyhaD05KUiRvB8AwZ075LDrPfkLIX1JkoFPFu5qiYwpivYrfWDAzKHk/iTgvJUT0KqS2orh2j9AqMhTZtpy9CFMlAh0hPXVkw1B6od+4p4zUEmJmsUAhmocKmAa6sWdR39ojhD6zF7gaadt0F4qIyk69xUyFZMhDsDNH35Sd4YzbNQhTwfil+piKiuCVWLXcBS19F26x/krX0W6pgL9Sk37PypXukOIyffURdqCOoQ/t3hQcmkJz7VPnWdf5lBG2Io9PP4Ag/qC4ayOtvVnNryW3GkHKPQgkI/PkW/iI0cyk3Fn6rSG+8M1NwzOrpbzCuAsjc/NN/FItvyetOGwqbSercVBVCMrTIc19GWZBRav1c6cbo9Yih7S0ZY+pBECn9E9awUyh7w4oJsY5NCOamihwpvKxaKuUVFBZRtK1Gh6ICayxXprWH4N3mRQlFbCXKxE8q6ia5xCGeefil6KHtLJpjKDWUJ/jb95cFQAGVTyUKh5PCkBIpQfQYVjH5QKN5fskqgyEbRuiRUF1X194YSKEx1IAk1V9QwlaECClIF1ta+UDm8AOpPSiqg0pcZ+dHHZNH+dCV6qJT1TY48lHt2jhhKJA4UCaufBTVXv/mBUHO55x8IZWJtN44GPw3K4sqdfAPUgRYIRbJD2O27SIRX+gF3TqMFBedrGEVQaOnDvUHSdCBaO39piSzJhDYAl4OeEoAG4YfsftnsTPirHfftRk5TofG3uWt9z69eqUu87Au+QZnkq7f3jHq9k82Ew0Ameit3rLoRPXciJ75G5BI/syDWx01YGoR5Ekb3ZFl8pcjUfA75iBVzHowJqXEi8RiTbi63pF4zPogmUaJEiRIlSqRK/wG873kFxutPKgAAAABJRU5ErkJggg==\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/{{admin_employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{admin_employee_id}}"
+              ]
+            },
+            "description": "Own account only. Accepts phoneNumber and/or profilePic — at least one required.\n\nRequires: token, employee_id (set by Login)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get updated admin profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response has employee fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('name');",
+                  "    pm.expect(body).to.have.property('email');",
+                  "    pm.expect(body).to.have.property('position');",
+                  "});",
+                  "",
+                  "pm.test('returned id matches stored employee_id', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.eql(pm.collectionVariables.get('admin_employee_id'));",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('employee_name',     body.name);",
+                  "pm.collectionVariables.set('employee_position', body.position);",
+                  "console.log('Profile:', body.name, '|', body.position);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees/{{admin_employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{admin_employee_id}}"
+              ]
+            },
+            "description": "Requires: token, employee_id (set by Login)."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin check - in",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// date must be exactly today — compute and inject it",
+                  "const now   = new Date();",
+                  "const yyyy  = now.getFullYear();",
+                  "const mm    = String(now.getMonth() + 1).padStart(2, '0');",
+                  "const dd    = String(now.getDate()).padStart(2, '0');",
+                  "pm.collectionVariables.set('today', `${yyyy}-${mm}-${dd}`);",
+                  "console.log('today ->', pm.collectionVariables.get('today'));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    pm.test('status is 201', function () {",
+                  "        pm.response.to.have.status(201);",
+                  "    });",
+                  "",
+                  "    pm.test('response has absence fields', function () {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body).to.have.property('id');",
+                  "        pm.expect(body).to.have.property('employeeId');",
+                  "        pm.expect(body).to.have.property('date');",
+                  "    });",
+                  "",
+                  "    pm.test('employeeId matches stored employee_id', function () {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.employeeId).to.eql(pm.collectionVariables.get('admin_employee_id'));",
+                  "    });",
+                  "",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('absence_id', body.id);",
+                  "    console.log('Absence id ->', body.id, '| date ->', body.date, '| checkIn ->', body.checkInTime);",
+                  "    ",
+                  "} else {",
+                  "        pm.test('status is NOT 201 - request failed', function () {",
+                  "        pm.response.to.not.have.status(201);",
+                  "        console.log('Unexpected status code:', pm.response.code);",
+                  "        console.log('Response body:', pm.response.text());",
+                  "    });",
+                  "}",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{today}}\",\n  \"checkInTime\": \"09:00\" \n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/{{admin_employee_id}}/absences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{admin_employee_id}}",
+                "absences"
+              ]
+            },
+            "description": "Records a daily check-in or check-out. No `type` field — that distinguishes it from a leave request.\n\ndate is auto-set to today by the pre-request script (validation rejects anything other than today).\nAt least one of checkInTime or checkOutTime is required. Format: HH:mm or HH:mm:ss.\ncheckInTime must be before checkOutTime if both are provided.\n\nStores absence_id into collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin check - out",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// date must be exactly today — compute and inject it",
+                  "const now   = new Date();",
+                  "const yyyy  = now.getFullYear();",
+                  "const mm    = String(now.getMonth() + 1).padStart(2, '0');",
+                  "const dd    = String(now.getDate()).padStart(2, '0');",
+                  "pm.collectionVariables.set('today', `${yyyy}-${mm}-${dd}`);",
+                  "console.log('today ->', pm.collectionVariables.get('today'));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    pm.test('status is 201', function () {",
+                  "        pm.response.to.have.status(201);",
+                  "    });",
+                  "",
+                  "    pm.test('response has absence fields', function () {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body).to.have.property('id');",
+                  "        pm.expect(body).to.have.property('employeeId');",
+                  "        pm.expect(body).to.have.property('date');",
+                  "    });",
+                  "",
+                  "    pm.test('employeeId matches stored employee_id', function () {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body.employeeId).to.eql(pm.collectionVariables.get('admin_employee_id'));",
+                  "    });",
+                  "",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('absence_id', body.id);",
+                  "    console.log('Absence id ->', body.id, '| date ->', body.date, '| checkIn ->', body.checkInTime);",
+                  "",
+                  "} else {",
+                  "    pm.test('status is NOT 201 - request failed', function () {",
+                  "        pm.response.to.not.have.status(201);",
+                  "        console.log('Unexpected status code:', pm.response.code);",
+                  "        console.log('Response body:', pm.response.text());",
+                  "    });",
+                  "}",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{today}}\",\n  \"checkOutTime\": \"17:00\" \n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/{{admin_employee_id}}/absences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{admin_employee_id}}",
+                "absences"
+              ]
+            },
+            "description": "Records a daily check-in or check-out. No `type` field — that distinguishes it from a leave request.\n\ndate is auto-set to today by the pre-request script (validation rejects anything other than today).\nAt least one of checkInTime or checkOutTime is required. Format: HH:mm or HH:mm:ss.\ncheckInTime must be before checkOutTime if both are provided.\n\nStores absence_id into collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Get admin absence check - in and out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response is an array', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an('array');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Absences count ->', body.length);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees/{{admin_employee_id}}/absences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{admin_employee_id}}",
+                "absences"
+              ]
+            },
+            "description": "Returns all absences for the stored employee. Optional query: startDate, endDate (yyyy-mm-dd)."
+          },
+          "response": []
+        },
+        {
+          "name": "Create admin leave request",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// startDate and endDate must be after today",
+                  "const tomorrow       = new Date();",
+                  "tomorrow.setDate(tomorrow.getDate() + 1);",
+                  "const dayAfter       = new Date();",
+                  "dayAfter.setDate(dayAfter.getDate() + 1);",
+                  "",
+                  "function fmt(d) {",
+                  "    const yyyy = d.getFullYear();",
+                  "    const mm   = String(d.getMonth() + 1).padStart(2, '0');",
+                  "    const dd   = String(d.getDate()).padStart(2, '0');",
+                  "    return `${yyyy}-${mm}-${dd}`;",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('admin_leave_start_date', fmt(tomorrow));",
+                  "pm.collectionVariables.set('admin_leave_end_date',   fmt(dayAfter));",
+                  "console.log('leave period ->', fmt(tomorrow), '->', fmt(dayAfter));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "",
+                  "    pm.test('status is 201', function () {",
+                  "        pm.response.to.have.status(201);",
+                  "    });",
+                  "",
+                  "    pm.test('response is an array of absences', function () {",
+                  "        const body = pm.response.json();",
+                  "        pm.expect(body).to.be.an('array');",
+                  "        pm.expect(body.length).to.be.greaterThan(0);",
+                  "    });",
+                  "",
+                  "    pm.test('each absence has required fields', function () {",
+                  "        const body = pm.response.json();",
+                  "        body.forEach(function (absence) {",
+                  "            pm.expect(absence).to.have.property('id');",
+                  "            pm.expect(absence).to.have.property('employeeId');",
+                  "            pm.expect(absence).to.have.property('leaveRequestId');",
+                  "            pm.expect(absence).to.have.property('leaveRequest');",
+                  "            pm.expect(absence.leaveRequest).to.have.property('id');",
+                  "            pm.expect(absence.leaveRequest).to.have.property('type');",
+                  "            pm.expect(absence.leaveRequest).to.have.property('status');",
+                  "            pm.expect(absence.leaveRequest).to.have.property('startDate');",
+                  "            pm.expect(absence.leaveRequest).to.have.property('endDate');",
+                  "        });",
+                  "    });",
+                  "",
+                  "    const body = pm.response.json();",
+                  "    const firstAbsence = body[0];",
+                  "    pm.collectionVariables.set('admin_leave_absence_id', firstAbsence.id);",
+                  "    pm.collectionVariables.set('admin_leave_request_id', firstAbsence.leaveRequest.id);",
+                  "} else {",
+                  "    console.info(\"Leave request already created before\")",
+                  "}",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"sick\",\n  \"startDate\": \"{{admin_leave_start_date}}\",\n  \"endDate\": \"{{admin_leave_end_date}}\",\n  \"notes\": \"sakit\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/{{admin_employee_id}}/absences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{admin_employee_id}}",
+                "absences"
+              ]
+            },
+            "description": "Submits a leave request. Presence of the `type` field distinguishes this from a check-in/out.\n\ntype: sick | wfh | annual_leave\nstartDate / endDate: yyyy-mm-dd, must be after today (auto-set by pre-request script).\nStatus will be pending until HR approves or rejects.\n\nStores leave_request_id and leave_absence_id into collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Get admin absence leave request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response is an array', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an('array');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Absences count ->', body.length);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees/{{admin_employee_id}}/absences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{admin_employee_id}}",
+                "absences"
+              ]
+            },
+            "description": "Returns all absences for the stored employee. Optional query: startDate, endDate (yyyy-mm-dd)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get admin activity logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response has data array and meta', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(body).to.have.property('meta');",
+                  "    pm.expect(body.meta).to.have.all.keys(",
+                  "        'page', 'limit', 'totalItems', 'totalPages', 'hasNextPage', 'hasPrevPage'",
+                  "    );",
+                  "    const size = body.data.length;",
+                  "    pm.expect(size).to.be.at.least(1);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Total employees:', body.meta.totalItems);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees/{{admin_employee_id}}/activity-logs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{admin_employee_id}}",
+                "activity-logs"
+              ]
+            },
+            "description": "HR only. Returns 403 if logged in as employee role."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Case 2 - Admin - Create New Employee",
+      "item": [
+        {
+          "name": "Login as admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('validate status code', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('validate response', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('token');",
+                  "    pm.expect(body).to.have.property('user');",
+                  "    pm.expect(body.user).to.have.property('employeeId');",
+                  "",
+                  "});",
+                  "",
+                  "pm.test('validate email', function () {",
+                  "    const expected = pm.collectionVariables.get('admin_login_email');",
+                  "    const result = pm.collectionVariables.get('admin_email');",
+                  "    pm.expect(expected).to.equal(result);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('admin_token',       body.token);",
+                  "pm.collectionVariables.set('admin_user_id',     body.user.id);",
+                  "pm.collectionVariables.set('admin_employee_id', body.user.employeeId);",
+                  "pm.collectionVariables.set('admin_email',       body.user.email);",
+                  "pm.collectionVariables.set('admin_role',        body.user.role);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Collection variables used: admin_login_email, admin_login_password"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_login_email}}\",\n  \"password\": \"{{admin_login_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Stores token, user_id, employee_id, email, role into collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin create new employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('validate status code', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('validate response', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('name');",
+                  "    pm.expect(body).to.have.property('email');",
+                  "    pm.expect(body).to.have.property('position');",
+                  "    pm.expect(body).to.have.property('departmentId');",
+                  "    pm.expect(body.isDeleted).to.eql(false);",
+                  "});",
+                  "",
+                  "pm.test('validate employee name', function () {",
+                  "    const expected = pm.collectionVariables.get('employee_name');",
+                  "    const result = pm.collectionVariables.get('employee_name');",
+                  "    pm.expect(result).to.eql(expected);",
+                  "});",
+                  "",
+                  "pm.test('validate employee email', function () {",
+                  "    const expected = pm.collectionVariables.get('employee_email');",
+                  "    const result = pm.collectionVariables.get('employee_email');",
+                  "    pm.expect(expected).to.eql(result);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('employee_id', body.id);",
+                  "pm.collectionVariables.set('employee_email', body.email);",
+                  "pm.collectionVariables.set('login_employee_email', body.email);",
+                  "pm.collectionVariables.set('login_employee_password', 'password');",
+                  "pm.collectionVariables.set('employee_name', body.email);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const firstName = pm.collectionVariables.replaceIn(\"{{$randomFirstName}}\").toLowerCase();",
+                  "const randomNum = pm.collectionVariables.replaceIn(\"{{$randomInt}}\");",
+                  "const username = firstName + randomNum;",
+                  "",
+                  "// Fixed domain",
+                  "const email = username + \"@dexa.com\";",
+                  "",
+                  "pm.collectionVariables.set(\"employee_name\", username);",
+                  "pm.collectionVariables.set(\"employee_email\", email);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"{{employee_name}}\",\n    \"email\": \"{{employee_email}}\",\n    \"displayName\": \"{{employee_name}}\",\n    \"position\": \"Product Manager\",\n    \"departmentId\": \"IT\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employees",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees"
+              ]
+            },
+            "description": "HR only. Creates a new user + employee record.\n\nRequired fields: username, email, displayName, position, departmentId.\ndepartmentId must be one of: HR, IT, FINANCE, MARKETING, SALES.\n\nStores created_employee_id into collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Get detail employee using admin access",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response has employee fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('name');",
+                  "    pm.expect(body).to.have.property('email');",
+                  "    pm.expect(body).to.have.property('position');",
+                  "});",
+                  "",
+                  "pm.test('returned id matches stored employee_id', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.eql(pm.collectionVariables.get('employee_id'));",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('employee_name',     body.name);",
+                  "pm.collectionVariables.set('employee_position', body.position);",
+                  "console.log('Profile:', body.name, '|', body.position);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees/{{employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{employee_id}}"
+              ]
+            },
+            "description": "Requires: token, employee_id (set by Login)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update employee profile using admin access",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{$randomPhoneNumber}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/{{employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{employee_id}}"
+              ]
+            },
+            "description": "Own account only. Accepts phoneNumber and/or profilePic — at least one required.\n\nRequires: token, employee_id (set by Login)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Case 3 - Employee - Feature Check",
+      "item": [
+        {
+          "name": "Login as new employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response has token and user', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('token');",
+                  "    pm.expect(body).to.have.property('user');",
+                  "    pm.expect(body.user).to.have.property('employeeId');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('employee_token', body.token);",
+                  "pm.collectionVariables.set('employee_user_id', body.user.id);",
+                  "pm.collectionVariables.set('employee_id', body.user.employeeId);",
+                  "pm.collectionVariables.set('employee_token', body.token);",
+                  "pm.collectionVariables.set('employee_id', body.user.employeeId);",
+                  "pm.collectionVariables.set('employee_email', body.user.email);",
+                  "pm.collectionVariables.set('employee_role', body.user.role);",
+                  "",
+                  "console.log('Logged in as', body.user.email, '|', body.user.role);",
+                  "console.log('employee_id ->', body.user.employeeId);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{login_employee_email}}\",\n  \"password\": \"{{login_employee_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Stores token, user_id, employee_id, email, role into collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Get detail employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response has employee fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('name');",
+                  "    pm.expect(body).to.have.property('email');",
+                  "    pm.expect(body).to.have.property('position');",
+                  "});",
+                  "",
+                  "pm.test('returned id matches stored employee_id', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.eql(pm.collectionVariables.get('employee_id'));",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('employee_name', body.name);",
+                  "pm.collectionVariables.set('employee_position', body.position);",
+                  "console.log('Profile:', body.name, '|', body.position);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees/{{employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{employee_id}}"
+              ]
+            },
+            "description": "Requires: token, employee_id (set by Login)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update employee profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response has updated employee fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('phoneNumber');",
+                  "});",
+                  "",
+                  "pm.test('id matches stored employee_id', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.eql(pm.collectionVariables.get('employee_id'));",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Updated phone ->', body.phoneNumber);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{$randomPhoneNumber}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/{{employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{employee_id}}"
+              ]
+            },
+            "description": "Own account only. Accepts phoneNumber and/or profilePic — at least one required.\n\nRequires: token, employee_id (set by Login)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get updated detail employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response has employee fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('name');",
+                  "    pm.expect(body).to.have.property('email');",
+                  "    pm.expect(body).to.have.property('position');",
+                  "});",
+                  "",
+                  "pm.test('returned id matches stored employee_id', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.eql(pm.collectionVariables.get('employee_id'));",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('employee_name',     body.name);",
+                  "pm.collectionVariables.set('employee_position', body.position);",
+                  "console.log('Profile:', body.name, '|', body.position);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees/{{employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{employee_id}}"
+              ]
+            },
+            "description": "Requires: token, employee_id (set by Login)."
+          },
+          "response": []
+        },
+        {
+          "name": "Employee check - in",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// date must be exactly today — compute and inject it",
+                  "const now   = new Date();",
+                  "const yyyy  = now.getFullYear();",
+                  "const mm    = String(now.getMonth() + 1).padStart(2, '0');",
+                  "const dd    = String(now.getDate()).padStart(2, '0');",
+                  "pm.collectionVariables.set('today', `${yyyy}-${mm}-${dd}`);",
+                  "console.log('today ->', pm.collectionVariables.get('today'));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('response has absence fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('employeeId');",
+                  "    pm.expect(body).to.have.property('date');",
+                  "});",
+                  "",
+                  "pm.test('employeeId matches stored employee_id', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.employeeId).to.eql(pm.collectionVariables.get('employee_id'));",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('absence_id', body.id);",
+                  "console.log('Absence id ->', body.id, '| date ->', body.date, '| checkIn ->', body.checkInTime);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{today}}\",\n  \"checkInTime\": \"09:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/{{employee_id}}/absences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{employee_id}}",
+                "absences"
+              ]
+            },
+            "description": "Records a daily check-in or check-out. No `type` field — that distinguishes it from a leave request.\n\ndate is auto-set to today by the pre-request script (validation rejects anything other than today).\nAt least one of checkInTime or checkOutTime is required. Format: HH:mm or HH:mm:ss.\ncheckInTime must be before checkOutTime if both are provided.\n\nStores absence_id into collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Employee check - out",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// date must be exactly today — compute and inject it",
+                  "const now   = new Date();",
+                  "const yyyy  = now.getFullYear();",
+                  "const mm    = String(now.getMonth() + 1).padStart(2, '0');",
+                  "const dd    = String(now.getDate()).padStart(2, '0');",
+                  "pm.collectionVariables.set('today', `${yyyy}-${mm}-${dd}`);",
+                  "console.log('today ->', pm.collectionVariables.get('today'));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('response has absence fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('employeeId');",
+                  "    pm.expect(body).to.have.property('date');",
+                  "});",
+                  "",
+                  "pm.test('employeeId matches stored employee_id', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.employeeId).to.eql(pm.collectionVariables.get('employee_id'));",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('absence_id', body.id);",
+                  "console.log(body);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{today}}\",\n  \"checkOutTime\": \"17:00\" \n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/{{employee_id}}/absences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{employee_id}}",
+                "absences"
+              ]
+            },
+            "description": "Records a daily check-in or check-out. No `type` field — that distinguishes it from a leave request.\n\ndate is auto-set to today by the pre-request script (validation rejects anything other than today).\nAt least one of checkInTime or checkOutTime is required. Format: HH:mm or HH:mm:ss.\ncheckInTime must be before checkOutTime if both are provided.\n\nStores absence_id into collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Get employee absence check - in and out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response is an array', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an('array');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Absences count ->', body.length);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees/{{employee_id}}/absences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{employee_id}}",
+                "absences"
+              ]
+            },
+            "description": "Returns all absences for the stored employee. Optional query: startDate, endDate (yyyy-mm-dd)."
+          },
+          "response": []
+        },
+        {
+          "name": "Create employee leave request",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// startDate and endDate must be after today",
+                  "const tomorrow       = new Date();",
+                  "tomorrow.setDate(tomorrow.getDate() + 1);",
+                  "const dayAfter       = new Date();",
+                  "dayAfter.setDate(dayAfter.getDate() + 3);",
+                  "",
+                  "function fmt(d) {",
+                  "    const yyyy = d.getFullYear();",
+                  "    const mm   = String(d.getMonth() + 1).padStart(2, '0');",
+                  "    const dd   = String(d.getDate()).padStart(2, '0');",
+                  "    return `${yyyy}-${mm}-${dd}`;",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('employee_leave_start_date', fmt(tomorrow));",
+                  "pm.collectionVariables.set('employee_leave_end_date',   fmt(dayAfter));",
+                  "console.log('leave period ->', fmt(tomorrow), '->', fmt(dayAfter));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('response is an array of absences', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an('array');",
+                  "    pm.expect(body.length).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "pm.test('each absence has required fields', function () {",
+                  "    const body = pm.response.json();",
+                  "    body.forEach(function(absence) {",
+                  "        pm.expect(absence).to.have.property('id');",
+                  "        pm.expect(absence).to.have.property('employeeId');",
+                  "        pm.expect(absence).to.have.property('leaveRequestId');",
+                  "        pm.expect(absence).to.have.property('leaveRequest');",
+                  "        pm.expect(absence.leaveRequest).to.have.property('id');",
+                  "        pm.expect(absence.leaveRequest).to.have.property('type');",
+                  "        pm.expect(absence.leaveRequest).to.have.property('status');",
+                  "        pm.expect(absence.leaveRequest).to.have.property('startDate');",
+                  "        pm.expect(absence.leaveRequest).to.have.property('endDate');",
+                  "    });",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const firstAbsence = body[0];",
+                  "pm.collectionVariables.set('employee_leave_absence_id', firstAbsence.id);",
+                  "pm.collectionVariables.set('employee_leave_request_id', firstAbsence.leaveRequest.id);",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"sick\",\n  \"startDate\": \"{{employee_leave_start_date}}\",\n  \"endDate\": \"{{employee_leave_end_date}}\",\n  \"notes\": \"sakit\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/{{employee_id}}/absences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{employee_id}}",
+                "absences"
+              ]
+            },
+            "description": "Submits a leave request. Presence of the `type` field distinguishes this from a check-in/out.\n\ntype: sick | wfh | annual_leave\nstartDate / endDate: yyyy-mm-dd, must be after today (auto-set by pre-request script).\nStatus will be pending until HR approves or rejects.\n\nStores leave_request_id and leave_absence_id into collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Get employee absence leave",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('response is an array', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an('array');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Absences count ->', body.length);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/employees/{{employee_id}}/absences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "employees",
+                "{{employee_id}}",
+                "absences"
+              ]
+            },
+            "description": "Returns all absences for the stored employee. Optional query: startDate, endDate (yyyy-mm-dd)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api",
+      "description": "Base URL of the API"
+    },
+    {
+      "key": "today",
+      "value": "",
+      "description": "Set by Create Check-in pre-request script (yyyy-mm-dd)"
+    },
+    {
+      "key": "new_employee_id",
+      "value": "",
+      "description": "Set by Create Employee"
+    },
+    {
+      "key": "new_employee_email",
+      "value": "",
+      "description": "Set by Create Employee"
+    },
+    {
+      "key": "admin_login_email",
+      "value": "auth.service@dexa.com",
+      "description": "Admin login email"
+    },
+    {
+      "key": "admin_login_password",
+      "value": "admin",
+      "description": "Admin login password"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "description": "Set by Login as admin"
+    },
+    {
+      "key": "admin_user_id",
+      "value": "",
+      "description": "Set by Login as admin"
+    },
+    {
+      "key": "admin_employee_id",
+      "value": "",
+      "description": "Set by Login as admin"
+    },
+    {
+      "key": "admin_email",
+      "value": "",
+      "description": "Set by Login as admin"
+    },
+    {
+      "key": "admin_role",
+      "value": "",
+      "description": "Set by Login as admin"
+    },
+    {
+      "key": "admin_employee_name",
+      "value": "",
+      "description": "Set by Get My Profile (admin)"
+    },
+    {
+      "key": "admin_employee_position",
+      "value": "",
+      "description": "Set by Get My Profile (admin)"
+    },
+    {
+      "key": "admin_absence_id",
+      "value": "",
+      "description": "Set by Create Check-in or Check-out (admin)"
+    },
+    {
+      "key": "admin_leave_start_date",
+      "value": "",
+      "description": "Set by Leave Request pre-request script (admin)"
+    },
+    {
+      "key": "admin_leave_end_date",
+      "value": "",
+      "description": "Set by Leave Request pre-request script (admin)"
+    },
+    {
+      "key": "admin_leave_request_id",
+      "value": "",
+      "description": "Set by Create Leave Request (admin)"
+    },
+    {
+      "key": "admin_leave_absence_id",
+      "value": "",
+      "description": "Set by Create Leave Request (admin)"
+    },
+    {
+      "key": "employee_login_email",
+      "value": "",
+      "description": "Employee login email (set by Create Employee or manual)"
+    },
+    {
+      "key": "employee_login_password",
+      "value": "admin",
+      "description": "Employee login password"
+    },
+    {
+      "key": "employee_token",
+      "value": "",
+      "description": "Set by Login as employee"
+    },
+    {
+      "key": "employee_user_id",
+      "value": "",
+      "description": "Set by Login as employee"
+    },
+    {
+      "key": "employee_employee_id",
+      "value": "",
+      "description": "Set by Login as employee"
+    },
+    {
+      "key": "employee_email",
+      "value": "",
+      "description": "Set by Login as employee"
+    },
+    {
+      "key": "employee_role",
+      "value": "",
+      "description": "Set by Login as employee"
+    },
+    {
+      "key": "employee_employee_name",
+      "value": "",
+      "description": "Set by Get My Profile (employee)"
+    },
+    {
+      "key": "employee_employee_position",
+      "value": "",
+      "description": "Set by Get My Profile (employee)"
+    },
+    {
+      "key": "employee_absence_id",
+      "value": "",
+      "description": "Set by Create Check-in or Check-out (employee)"
+    },
+    {
+      "key": "employee_leave_start_date",
+      "value": "",
+      "description": "Set by Leave Request pre-request script (employee)"
+    },
+    {
+      "key": "employee_leave_end_date",
+      "value": "",
+      "description": "Set by Leave Request pre-request script (employee)"
+    },
+    {
+      "key": "employee_leave_request_id",
+      "value": "",
+      "description": "Set by Create Leave Request (employee)"
+    },
+    {
+      "key": "employee_leave_absence_id",
+      "value": "",
+      "description": "Set by Create Leave Request (employee)"
+    },
+    {
+      "key": "employee_name",
+      "value": ""
+    },
+    {
+      "key": "employee_position",
+      "value": ""
+    },
+    {
+      "key": "absence_id",
+      "value": ""
+    },
+    {
+      "key": "leave_start_date",
+      "value": ""
+    },
+    {
+      "key": "leave_end_date",
+      "value": ""
+    },
+    {
+      "key": "leave_absence_id",
+      "value": ""
+    },
+    {
+      "key": "employee_id",
+      "value": ""
+    },
+    {
+      "key": "login_employee_email",
+      "value": ""
+    },
+    {
+      "key": "login_employee_password",
+      "value": ""
+    }
+  ]
+}

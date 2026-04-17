@@ -1,0 +1,33 @@
+version: '3.8'
+
+# Starts PostgreSQL and RabbitMQ locally
+# Run: docker compose up -d
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: dexa-absence-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dexa
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dexa_absence
+    ports:
+      - "5431:5431"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: dexa_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"       # App connects here
+      - "15672:15672"     # Web UI: http://localhost:15672
+
+volumes:
+  postgres_data:

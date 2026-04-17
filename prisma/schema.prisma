@@ -1,0 +1,134 @@
+// Prisma is an ORM — it maps TypeScript objects to database tables.
+// After editing this file run: npm run db:migrate
+// To open a visual DB browser run: npm run db:studio
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_ABSENCE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role
+  isActive     Boolean   @default(true) @map("is_active") // false = soft deleted
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  employee     Employee?
+
+  @@map("users")
+}
+
+enum Role {
+  employee
+  hr
+}
+
+enum Department {
+  HR
+  IT
+  FINANCE
+  MARKETING
+  SALES
+}
+
+model Employee {
+  id           String     @id @default(uuid())
+  userId       String     @unique @map("user_id")
+  departmentId Department @map("department_id")
+  name         String
+  displayName  String     @map("display_name")
+  email        String     @map("email")
+  profilePic   String?    @map("profile_pic") // nullable
+  position     String
+  phoneNumber  String     @map("phone_number")
+  isDeleted    Boolean    @default(false) @map("is_deleted") // soft delete flag
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  user          User           @relation(fields: [userId], references: [id])
+  absences      Absence[]
+  leaveRequests LeaveRequest[]
+
+  // An employee can request absences and also review them (if HR)
+  requestedTasks PendingTask[] @relation("RequestedBy")
+  reviewedTasks  PendingTask[] @relation("ReviewedBy")
+
+  @@map("employees")
+}
+
+model Absence {
+  id             String    @id @default(uuid())
+  employeeId     String    @map("employee_id")
+  date           DateTime  @map("date") @db.Date
+  checkInTime    DateTime? @map("check_in_time") @db.Time
+  checkOutTime   DateTime? @map("check_out_time") @db.Time
+  notes          String?
+  leaveRequestId String?   @map("leave_request_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  employee     Employee?     @relation(fields: [employeeId], references: [id])
+  leaveRequest LeaveRequest? @relation(fields: [leaveRequestId], references: [id])
+
+  @@map("absences")
+}
+
+model LeaveRequest {
+  id         String      @id @default(uuid())
+  employeeId String      @map("employee_id")
+  type       LeaveType
+  startDate  DateTime    @map("start_date") @db.Date
+  endDate    DateTime    @map("end_date") @db.Date
+  status     LeaveStatus @default(pending)
+  notes      String?
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+  absences    Absence[]
+  pendingTask PendingTask?
+
+  @@map("leave_requests")
+}
+
+enum LeaveType {
+  sick
+  wfh
+  annual_leave
+}
+
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+}
+
+model PendingTask {
+  id             String     @id @default(uuid())
+  leaveRequestId String     @unique @map("leave_request_id") // 1-to-1 with leave request
+  requestedBy    String     @map("requested_by") // employee who submitted
+  reviewedBy     String?    @map("reviewed_by") // HR who reviewed (nullable)
+  status         TaskStatus @default(pending)
+  hrNotes        String?    @map("hr_notes") // optional HR comment
+  reviewedAt     DateTime?  @map("reviewed_at") // when HR acted
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id])
+  requester    Employee     @relation("RequestedBy", fields: [requestedBy], references: [id])
+  reviewer     Employee?    @relation("ReviewedBy", fields: [reviewedBy], references: [id])
+
+  @@map("pending_tasks")
+}
+
+enum TaskStatus {
+  pending
+  approved
+  rejected
+}

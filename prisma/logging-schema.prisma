@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/logging-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_LOGGING_URL")
+}
+
+enum ActivityAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum ActivityType {
+  employee
+  daily_attendance
+  leave_request
+  password_change
+  absence
+}
+
+model ActivityLog {
+  id          String         @id @default(uuid())
+  createdAt   DateTime       @default(now()) @map("created_at")
+  employeeId  String         @map("employee_id")
+  action      ActivityAction
+  type        ActivityType
+  dataBefore  Json?          @map("data_before")
+  dataAfter   Json?          @map("data_after")
+  referenceId String?        @map("reference_id")
+
+  @@index([employeeId])
+  @@map("activity_logs")
+}

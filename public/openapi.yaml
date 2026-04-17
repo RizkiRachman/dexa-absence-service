@@ -1,0 +1,697 @@
+openapi: 3.1.0
+
+info:
+  title: Dexa Absence Service API
+  version: 2.0.0
+  description: Employee absence management API
+
+servers:
+  - url: http://localhost:3000/api
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+            timestamp: { type: string, format: date-time }
+            path: { type: string }
+          required: [code, message, timestamp, path]
+      required: [error]
+      example:
+        error:
+          code: UNAUTHORIZED
+          message: Invalid or expired token
+          timestamp: '2026-04-17T08:00:00.000Z'
+          path: /api/employees
+
+    PaginationMeta:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        totalItems: { type: integer }
+        totalPages: { type: integer }
+        hasNextPage: { type: boolean }
+        hasPrevPage: { type: boolean }
+      required: [page, limit, totalItems, totalPages, hasNextPage, hasPrevPage]
+      example:
+        page: 1
+        limit: 10
+        totalItems: 42
+        totalPages: 5
+        hasNextPage: true
+        hasPrevPage: false
+
+    Employee:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        departmentId:
+          type: string
+          enum: [HR, IT, FINANCE, MARKETING, SALES]
+        name: { type: string }
+        displayName: { type: string }
+        email: { type: string, format: email }
+        profilePic: { type: [string, 'null'] }
+        position: { type: string }
+        phoneNumber: { type: string }
+        isDeleted: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      example:
+        id: 322b34de-d319-4e2b-8453-c7fda3f04814
+        userId: 3479902c-1759-49c2-a3cc-1c89fbcde194
+        departmentId: HR
+        name: Siti Rahayu
+        displayName: Siti
+        email: siti.rahayu@dexa.com
+        profilePic: null
+        position: Manajer SDM
+        phoneNumber: 521-668-2449
+        isDeleted: false
+        createdAt: '2026-04-16T10:26:45.739Z'
+        updatedAt: '2026-04-17T08:39:19.558Z'
+
+    LeaveRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        employeeId: { type: string, format: uuid }
+        type:
+          type: string
+          enum: [sick, wfh, annual_leave]
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        startDate: { type: [string, 'null'], format: date }
+        endDate: { type: [string, 'null'], format: date }
+        notes: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      example:
+        id: aab12300-0001-0002-0003-000000000001
+        employeeId: 322b34de-d319-4e2b-8453-c7fda3f04814
+        type: sick
+        status: approved
+        startDate: '2026-04-10'
+        endDate: '2026-04-11'
+        notes: Fever
+        createdAt: '2026-04-10T07:00:00.000Z'
+        updatedAt: '2026-04-10T09:00:00.000Z'
+
+    Absence:
+      type: object
+      description: >
+        A single absence record. Daily attendance rows have leaveRequest=null.
+        Leave request rows share the same leaveRequest.id across multiple dates
+        (one leave = multiple absence rows).
+      properties:
+        id: { type: string, format: uuid }
+        employeeId: { type: string, format: uuid }
+        date: { type: [string, 'null'], format: date }
+        checkInTime: { type: [string, 'null'] }
+        checkOutTime: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        leaveRequestId: { type: [string, 'null'], format: uuid }
+        leaveRequest: { oneOf: [{ $ref: '#/components/schemas/LeaveRequest' }, { type: 'null' }] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      example:
+        id: c1234567-0000-0000-0000-000000000001
+        employeeId: 322b34de-d319-4e2b-8453-c7fda3f04814
+        date: '2026-04-17'
+        checkInTime: '08:05:00'
+        checkOutTime: '17:02:00'
+        notes: null
+        leaveRequestId: null
+        leaveRequest: null
+        createdAt: '2026-04-17T08:05:00.000Z'
+        updatedAt: '2026-04-17T17:02:00.000Z'
+
+    ActivityLog:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        employeeId: { type: string, format: uuid }
+        action:
+          type: string
+          enum: [CREATE, UPDATE, DELETE]
+        type:
+          type: string
+          enum: [employee, daily_attendance, leave_request]
+        referenceId: { type: [string, 'null'], format: uuid }
+        dataBefore: { type: [object, 'null'] }
+        dataAfter: { type: [object, 'null'] }
+      example:
+        id: 1a7e3a2e-de08-4b29-84b1-12281fa00d4a
+        createdAt: '2026-04-17T08:39:19.601Z'
+        employeeId: 322b34de-d319-4e2b-8453-c7fda3f04814
+        action: UPDATE
+        type: employee
+        referenceId: null
+        dataBefore:
+          phoneNumber: '521-668-2449'
+          updatedAt: '2026-04-17T08:34:46.866Z'
+        dataAfter:
+          phoneNumber: '123456789'
+          updatedAt: '2026-04-17T08:39:19.558Z'
+
+  responses:
+    Unauthorized:
+      description: Invalid or missing token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Invalid or expired token
+              timestamp: '2026-04-17T08:00:00.000Z'
+              path: /api/employees
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error:
+              code: FORBIDDEN
+              message: You do not have permission to access this resource
+              timestamp: '2026-04-17T08:00:00.000Z'
+              path: /api/employees
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error:
+              code: NOT_FOUND
+              message: Employee not found
+              timestamp: '2026-04-17T08:00:00.000Z'
+              path: /api/employees/unknown-id
+    ValidationError:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Validation failed
+              details:
+                - field: email
+                  message: must be a valid email
+              timestamp: '2026-04-17T08:00:00.000Z'
+              path: /api/employees
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error:
+              code: INTERNAL_SERVER_ERROR
+              message: An unexpected error occurred
+              timestamp: '2026-04-17T08:00:00.000Z'
+              path: /api/employees
+
+paths:
+
+  # ── Auth ─────────────────────────────────────────────────────────────────────
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+            example:
+              email: admin@dexa.com
+              password: admin
+      responses:
+        '200':
+          description: Login successful — returns JWT and user info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  user:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      employeeId: { type: string, format: uuid }
+                      email: { type: string, format: email }
+                      role: { type: string, enum: [employee, hr] }
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                user:
+                  id: abc00000-0000-0000-0000-000000000001
+                  employeeId: 322b34de-d319-4e2b-8453-c7fda3f04814
+                  email: admin@dexa.com
+                  role: hr
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Wrong email or password
+          content:
+            application/json:
+              example:
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: Email or password is incorrect
+                  timestamp: '2026-04-17T08:00:00.000Z'
+                  path: /api/auth/login
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (invalidates token)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Logged out successfully }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ── Employees ─────────────────────────────────────────────────────────────────
+
+  /employees:
+    get:
+      tags: [Employee]
+      summary: List all employees — HR only
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1, minimum: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: Paginated employee list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Employee' }
+                  meta: { $ref: '#/components/schemas/PaginationMeta' }
+              example:
+                data:
+                  - id: 322b34de-d319-4e2b-8453-c7fda3f04814
+                    userId: 3479902c-1759-49c2-a3cc-1c89fbcde194
+                    departmentId: HR
+                    name: Siti Rahayu
+                    displayName: Siti
+                    email: siti.rahayu@dexa.com
+                    profilePic: null
+                    position: Manajer SDM
+                    phoneNumber: '521-668-2449'
+                    isDeleted: false
+                    createdAt: '2026-04-16T10:26:45.739Z'
+                    updatedAt: '2026-04-17T08:39:19.558Z'
+                meta:
+                  page: 1
+                  limit: 10
+                  totalItems: 1
+                  totalPages: 1
+                  hasNextPage: false
+                  hasPrevPage: false
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      tags: [Employee]
+      summary: Create employee — HR only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, displayName, position, departmentId]
+              properties:
+                username: { type: string }
+                email: { type: string, format: email }
+                displayName: { type: string }
+                position: { type: string }
+                departmentId:
+                  type: string
+                  enum: [HR, IT, FINANCE, MARKETING, SALES]
+            example:
+              username: john.doe
+              email: john.doe@dexa.com
+              displayName: John
+              position: Software Engineer
+              departmentId: IT
+      responses:
+        '201': { description: Employee created }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /employees/search/user-id/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Employee]
+      summary: Get employee by user ID
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Employee record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Employee' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /employees/{employeeId}:
+    parameters:
+      - name: employeeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Employee]
+      summary: Get employee by ID
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Employee record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Employee' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Employee]
+      summary: Update own profile (phone number or profile picture)
+      description: Employee can only update their own record. HR cannot update others here.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phoneNumber: { type: string }
+                profilePic:
+                  type: string
+                  description: Base64-encoded image string (max ~1 MB). Supports JPEG and PNG.
+            example:
+              phoneNumber: '123456789'
+              profilePic: data:image/jpeg;base64,/9j/4AAQSkZJRgAB...
+      responses:
+        '200': { description: Profile updated }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Employee]
+      summary: Delete employee — HR only
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Employee deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /employees/{employeeId}/password:
+    parameters:
+      - name: employeeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [Employee]
+      summary: Change own password
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldPassword, newPassword]
+              properties:
+                oldPassword: { type: string }
+                newPassword: { type: string, minLength: 6 }
+            example:
+              oldPassword: admin
+              newPassword: newSecurePass123
+      responses:
+        '200': { description: Password changed }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ── Absences ──────────────────────────────────────────────────────────────────
+
+  /employees/{employeeId}/absences:
+    parameters:
+      - name: employeeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Absence]
+      summary: List absences (own or HR for any employee)
+      description: >
+        Returns a flat array of all absence records. Daily attendance rows have
+        `leaveRequest=null`. Leave request rows share the same `leaveRequest.id`
+        across multiple dates. Only `startDate` and `endDate` filters are supported
+        server-side; `type` and `status` must be filtered client-side.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+          example: '2026-04-01'
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+          example: '2026-04-30'
+      responses:
+        '200':
+          description: Flat array of absence records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Absence' }
+              example:
+                - id: c1234567-0000-0000-0000-000000000001
+                  employeeId: 322b34de-d319-4e2b-8453-c7fda3f04814
+                  date: '2026-04-17'
+                  checkInTime: '08:05:00'
+                  checkOutTime: '17:02:00'
+                  notes: null
+                  leaveRequestId: null
+                  leaveRequest: null
+                  createdAt: '2026-04-17T08:05:00.000Z'
+                  updatedAt: '2026-04-17T17:02:00.000Z'
+                - id: c1234567-0000-0000-0000-000000000002
+                  employeeId: 322b34de-d319-4e2b-8453-c7fda3f04814
+                  date: '2026-04-10'
+                  checkInTime: null
+                  checkOutTime: null
+                  notes: null
+                  leaveRequestId: aab12300-0001-0002-0003-000000000001
+                  leaveRequest:
+                    id: aab12300-0001-0002-0003-000000000001
+                    employeeId: 322b34de-d319-4e2b-8453-c7fda3f04814
+                    type: sick
+                    status: approved
+                    startDate: '2026-04-10'
+                    endDate: '2026-04-11'
+                    notes: Fever
+                    createdAt: '2026-04-10T07:00:00.000Z'
+                    updatedAt: '2026-04-10T09:00:00.000Z'
+                  createdAt: '2026-04-10T07:00:00.000Z'
+                  updatedAt: '2026-04-10T09:00:00.000Z'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Absence]
+      summary: Create absence record (own only)
+      description: >
+        For daily attendance: omit `type`, provide `date`, `checkInTime`, `checkOutTime`.
+        The `date` must be today — the server rejects past dates.
+        For leave requests: provide `type`, `startDate`, `endDate`. `startDate` must be today or future.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [sick, wfh, annual_leave]
+                  description: Omit for daily attendance
+                date: { type: string, format: date }
+                checkInTime: { type: string, example: '08:00:00' }
+                checkOutTime: { type: string, example: '17:00:00' }
+                startDate: { type: string, format: date }
+                endDate: { type: string, format: date }
+                notes: { type: string }
+            examples:
+              dailyAttendance:
+                summary: Daily attendance check-in/out
+                value:
+                  date: '2026-04-17'
+                  checkInTime: '08:00:00'
+                  checkOutTime: '17:00:00'
+              sickLeave:
+                summary: Sick leave request
+                value:
+                  type: sick
+                  startDate: '2026-04-18'
+                  endDate: '2026-04-19'
+                  notes: Fever and flu
+      responses:
+        '201': { description: Absence created }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /employees/{employeeId}/absences/{absenceId}:
+    parameters:
+      - name: employeeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: absenceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Absence]
+      summary: Delete single absence record — HR only
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /employees/{employeeId}/leave-requests/{leaveRequestId}:
+    parameters:
+      - name: employeeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: leaveRequestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Absence]
+      summary: Delete leave request and all its absence rows
+      description: HR can delete any leave request. Employees can delete their own pending requests.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ── Activity Logs ─────────────────────────────────────────────────────────────
+
+  /employees/{employeeId}/activity-logs:
+    parameters:
+      - name: employeeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Activity]
+      summary: List activity logs for the authenticated employee
+      description: >
+        Returns a paginated list of audit events for the currently logged-in employee.
+        The `employeeId` path parameter is validated against the JWT but the response
+        always contains only the caller's own logs.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1, minimum: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: Paginated activity log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ActivityLog' }
+                  meta: { $ref: '#/components/schemas/PaginationMeta' }
+              example:
+                data:
+                  - id: 1a7e3a2e-de08-4b29-84b1-12281fa00d4a
+                    createdAt: '2026-04-17T08:39:19.601Z'
+                    employeeId: 322b34de-d319-4e2b-8453-c7fda3f04814
+                    action: UPDATE
+                    type: employee
+                    referenceId: null
+                    dataBefore:
+                      phoneNumber: '521-668-2449'
+                      updatedAt: '2026-04-17T08:34:46.866Z'
+                    dataAfter:
+                      phoneNumber: '123456789'
+                      updatedAt: '2026-04-17T08:39:19.558Z'
+                meta:
+                  page: 1
+                  limit: 10
+                  totalItems: 1
+                  totalPages: 1
+                  hasNextPage: false
+                  hasPrevPage: false
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }

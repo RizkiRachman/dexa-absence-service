@@ -1,0 +1,146 @@
+# Dexa Absence Service
+
+Employee absence management API built with Next.js, PostgreSQL, and RabbitMQ.
+
+---
+
+## Table of Contents
+
+- [Requirements](#requirements)
+- [First Time Setup](#first-time-setup)
+- [Test Accounts](#test-accounts)
+- [Common Commands](#common-commands)
+- [What's Missing](#whats-missing)
+
+---
+
+## Requirements
+
+Before you start, make sure these are installed on your machine:
+
+- [Node.js 20+](https://nodejs.org)
+- [PostgreSQL 14+](https://www.postgresql.org/download/) — running on port `5432`
+- [RabbitMQ 3.12+](https://www.rabbitmq.com/download.html) — running on port `5672`
+
+> You can use `docker compose up -d` to start PostgreSQL and RabbitMQ locally instead of installing them manually.
+
+---
+
+## First Time Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Set up environment variables
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and update `JWT_SECRET` with a random string:
+
+```bash
+openssl rand -base64 32
+```
+
+Leave everything else as default if you're running PostgreSQL and RabbitMQ locally with default credentials.
+
+### 3. Create databases
+
+This creates both `dexa_absence` and `dexa_logging` databases with the `dexa` user:
+
+```bash
+npm run db:setup
+```
+
+> Assumes PostgreSQL superuser is `postgres` / `postgres`. If yours is different, edit `scripts/setup-db.ts`.
+
+### 4. Run migrations
+
+```bash
+npm run db:migrate
+npm run db:migrate:logging
+```
+
+### 5. Generate Prisma clients
+
+```bash
+npm run db:generate
+npm run db:generate:logging
+```
+
+### 6. Seed initial data
+
+```bash
+# M2M service account (required for internal API calls)
+npm run db:init:m2m
+
+# HR employees
+npm run db:init:hr
+
+# Regular employees with absences and leave requests
+npm run db:init:employee
+```
+
+### 7. Start the server
+
+```bash
+npm run dev
+```
+
+Server runs at `http://localhost:3000`
+API docs at `http://localhost:3000/api-docs`
+
+---
+
+## Test Accounts
+
+After seeding, you can log in with these accounts:
+
+| Email | Password | Role |
+|---|---|---|
+| `api.gateway@dexa.com` | `api.gateway` | HR (M2M) |
+| `hendra.gunawan@dexa.com` | `password` | HR |
+| `maya.putri@dexa.com` | `password` | HR |
+| `raka.pratama@dexa.com` | `password` | Employee |
+| `layla.nur@dexa.com` | `password` | Employee |
+| `dimas.arya@dexa.com` | `password` | Employee |
+| `sari.indah@dexa.com` | `password` | Employee |
+
+---
+
+## Common Commands
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm start` | Start production server |
+| `npm run lint` | Check for code issues |
+| `npm run lint:fix` | Auto-fix code issues |
+| `npm run db:setup` | Create databases and user |
+| `npm run db:drop` | Drop all databases and user |
+| `npm run db:studio` | Open Prisma Studio (main DB) |
+| `npm run db:studio:logging` | Open Prisma Studio (logging DB) |
+
+---
+
+## What's Missing
+
+Things that would make this production-ready but aren't implemented yet:
+
+| Area | What's missing |
+|---|---|
+| **Testing** | No unit or integration tests — Jest is configured but no test files exist |
+| **Rate limiting** | No request throttling — API is open to brute-force on login |
+| **Refresh token** | Auth only issues an access token — no refresh flow, users must re-login after expiry |
+| **Dead letter queue** | Failed RabbitMQ messages are discarded silently — no retry or dead letter exchange |
+| **Health check** | No `/health` or `/ping` endpoint for uptime monitoring or load balancers |
+| **Profile picture upload** | `profilePic` field exists in the DB schema but no upload endpoint is implemented |
+| **Email notifications** | No email sent on leave request approval/rejection |
+| **Leave balance tracking** | `MAXIMUM_ALLOWED_LEAVES_PER_YEAR` is configured but not enforced |
+| **Docker setup** | `docker-compose.yml` only starts PostgreSQL and RabbitMQ — no container for the app itself |
+| **CI/CD** | No pipeline for automated lint, test, or deploy |

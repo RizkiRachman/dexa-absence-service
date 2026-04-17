@@ -12,15 +12,15 @@ import {publish} from "@/lib/rabbitmq";
 export const passwordService = {
 
     // Change user employee password
-    async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    async changePassword(userId: string, oldPassword: string, newPassword: string) {
         ObjectValidation.throwsIfArraysIsNotEmpty(
-            PasswordValidation.validateChangePassword(currentPassword, newPassword)
+            PasswordValidation.validateChangePassword(oldPassword, newPassword)
         );
 
         const user = await employeeService.getUser(userId);
         const employee = await employeeService.getEmployeeByUserId(userId);
 
-        const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+        const isValid = await bcrypt.compare(oldPassword, user.passwordHash);
         if (!isValid) throw new InvalidCredentialsError(ERROR_MESSAGES.USER_PASSWORD_INCORRECT)
 
         const hash = await bcrypt.hash(newPassword, 10);

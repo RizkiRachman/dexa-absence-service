@@ -1,7 +1,3 @@
-/**
- * POST /api/auth/login
- */
-
 import type {NextApiRequest, NextApiResponse} from 'next';
 import {authController} from '@/modules/auth/controllers/auth.controller';
 import {methodNotAllowed} from '@/shared/dtos/response';

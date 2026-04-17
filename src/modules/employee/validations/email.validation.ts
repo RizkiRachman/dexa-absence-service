@@ -3,7 +3,7 @@ import {EmailDomains} from "@/shared/constants/emailDomains";
 
 export class EmailValidation {
     readonly field: string;
-    private readonly email: string;
+    readonly email: string;
 
     constructor(email: string, field = 'email') {
         this.email = email;
@@ -23,7 +23,7 @@ export class EmailValidation {
     }
 
     private isNotEmpty(): boolean {
-        return this.email.trim().length > 0;
+        return !!this.email && this.email.length > 0;
     }
 
     private isValidFormat(): boolean {
@@ -32,12 +32,12 @@ export class EmailValidation {
     }
 
     private maxLength(): boolean {
-        return this.email.length <= 128;
+        return !!this.email && this.email.length <= 128;
     }
 
     private isAllowedDomain(): boolean {
-        const domain = this.email.split('@')[1].toLowerCase();
-        const allowed = Object.values(EmailDomains).map(d => d.toLowerCase());
-        return allowed.includes(domain);
+        if (!this.email) return false;
+        return Object.values(EmailDomains)
+            .some(domain => this.email.endsWith('@' + domain));
     }
 }

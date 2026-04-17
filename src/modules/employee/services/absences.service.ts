@@ -41,6 +41,10 @@ export const absencesService = {
 
     // get employee absences by employee id by absence id
     async getAbsencesByEmployeeIdAndAbsenceId(employeeId: string, absenceId: string): Promise<AbsenceResponse> {
+        ObjectValidation.getOrThrowIfNotFound(
+            await absenceRepository.findAbsenceById(absenceId),
+            ERROR_MESSAGES.ABSENCE_NOT_FOUND);
+
         await employeeService.getProfile(employeeId);
         const absence = await absenceRepository.findAbsenceById(absenceId);
         return buildAbsenceResponse(absence);

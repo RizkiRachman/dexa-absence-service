@@ -23,6 +23,7 @@ export const ERROR_MESSAGES = {
     USERNAME_IS_ALREADY_EXIST: 'Email or username is already exist, please use another email or username',
     EXTERNAL_SERVICE_ERROR: 'External service error',
     LEAVE_REQUEST_ALREADY_EXIST: 'You already have an existing leave request with the selected date range',
+    ABSENCE_NOT_FOUND: 'User employee absence record not found',
 } as const;
 
 export type ERROR_MESSAGES = typeof ERROR_MESSAGES[keyof typeof ERROR_MESSAGES];

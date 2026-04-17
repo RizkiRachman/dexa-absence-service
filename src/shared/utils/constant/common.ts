@@ -8,7 +8,8 @@ export const CONSTANT = {
 export type CONSTANT = typeof CONSTANT[keyof typeof CONSTANT];
 
 export const FIELD = {
-    PASSWORD: 'password'
+    PASSWORD: 'password',
+    USERNAME: 'username',
 } as const;
 
 export type FILED = typeof FIELD[keyof typeof FIELD];

@@ -17,8 +17,8 @@ export class PasswordValidation {
 
     static validateChangePassword(oldPassword: string, newPassword: string): ErrorDetail[] | null {
         const errors: ErrorDetail[] = [];
-        console.log("Old password: "+oldPassword);
-        console.log("New password: "+newPassword);
+        console.log("Old password: " + oldPassword);
+        console.log("New password: " + newPassword);
         const errorOldPassword = new PasswordValidation(oldPassword, "old password").validate();
         const errorNewPassword = new PasswordValidation(newPassword, "new password").validate();
         if (errorOldPassword) errors.push(errorOldPassword);
@@ -32,7 +32,6 @@ export class PasswordValidation {
             field: this.field,
             message: `Password must be at least ${PasswordValidation.MIN_LENGTH} characters`
         };
-        console.log("Validation max leeangth"+PasswordValidation.MAX_LENGTH);
         if (!this.isMaxLength()) return {
             field: this.field,
             message: `Password must not exceed ${PasswordValidation.MAX_LENGTH} characters`
@@ -41,14 +40,14 @@ export class PasswordValidation {
     }
 
     private isNotEmpty(): boolean {
-        return this.password.length > 0;
+        return !!this.password && this.password.length > 0;
     }
 
     private isLongEnough(): boolean {
-        return this.password.length >= PasswordValidation.MIN_LENGTH;
+        return !!this.password && this.password.length >= PasswordValidation.MIN_LENGTH;
     }
 
     private isMaxLength(): boolean {
-        return this.password.length <= PasswordValidation.MAX_LENGTH;
+        return !!this.password && this.password.length <= PasswordValidation.MAX_LENGTH;
     }
 }

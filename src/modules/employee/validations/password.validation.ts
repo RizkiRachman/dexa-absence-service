@@ -17,8 +17,6 @@ export class PasswordValidation {
 
     static validateChangePassword(oldPassword: string, newPassword: string): ErrorDetail[] | null {
         const errors: ErrorDetail[] = [];
-        console.log("Old password: " + oldPassword);
-        console.log("New password: " + newPassword);
         const errorOldPassword = new PasswordValidation(oldPassword, "old password").validate();
         const errorNewPassword = new PasswordValidation(newPassword, "new password").validate();
         if (errorOldPassword) errors.push(errorOldPassword);

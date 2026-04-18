@@ -1,5 +1,5 @@
 import prisma from '@/lib/db';
-import {CreateEmployeeData, UpdateProfileInput} from '../dtos/profiles.dto';
+import {CreateEmployeeData, UpdateProfileRequest} from '../dtos/profiles.dto';
 import {PaginationParams} from "@/shared/dtos/pagination";
 
 export const employeeRepository = {
@@ -36,7 +36,7 @@ export const employeeRepository = {
         });
     },
 
-    updateProfile(employeeId: string, data: UpdateProfileInput) {
+    updateProfile(employeeId: string, data: UpdateProfileRequest) {
         return prisma.employee.update({
             where: {id: employeeId},
             data: {

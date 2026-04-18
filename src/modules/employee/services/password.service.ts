@@ -8,6 +8,7 @@ import {PasswordValidation} from "@/modules/employee/validations/password.valida
 import {ActivityLogAction, ActivityLogType, QueueConfig} from "@/shared/constants/activity-log";
 import {ActivityLogRequest} from "@/modules/activity-log/dtos/activity-log.dto";
 import {publish} from "@/lib/rabbitmq";
+import {DEFAULT} from "@/shared/utils/constant/default";
 
 export const passwordService = {
 
@@ -23,7 +24,7 @@ export const passwordService = {
         const isValid = await bcrypt.compare(oldPassword, user.passwordHash);
         if (!isValid) throw new InvalidCredentialsError(ERROR_MESSAGES.USER_PASSWORD_INCORRECT)
 
-        const hash = await bcrypt.hash(newPassword, 10);
+        const hash = await bcrypt.hash(newPassword, DEFAULT.DEFAULT_SALT);
 
         const activityLog = {
             employeeId: employee.id,

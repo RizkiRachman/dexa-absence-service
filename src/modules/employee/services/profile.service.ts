@@ -1,5 +1,5 @@
 import {employeeRepository} from '../repositories/employee.repository';
-import {UpdateProfileInput} from '../dtos/profiles.dto';
+import {UpdateProfileRequest} from '../dtos/profiles.dto';
 import {publish, QUEUES} from '@/lib/rabbitmq';
 import {UpdateProfileValidation} from "../validations/profiles.validation";
 import {ValidationError} from "@/shared/errors/exception";
@@ -11,7 +11,7 @@ import {ActivityLogAction, ActivityLogType, QueueConfig} from "@/shared/constant
 export const profileService = {
 
     // update profile by employee id
-    async updateProfile(employeeId: string, request: UpdateProfileInput) {
+    async updateProfile(employeeId: string, request: UpdateProfileRequest) {
         // validate input
         console.log("Update profile by employee id : " + employeeId);
         UpdateProfileValidation.validateOrThrow(request);

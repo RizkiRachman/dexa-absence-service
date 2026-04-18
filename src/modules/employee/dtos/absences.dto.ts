@@ -52,7 +52,6 @@ export interface LeaveRequestCreateData {
     notes?: string;
 }
 
-// Builder
 export function buildTapInOutCreateData(
     employeeId: string,
     input: TapInOutCreateRequest
@@ -111,9 +110,6 @@ export function buildLeaveAbsenceData(
     }
     return absences;
 }
-
-
-// --- Response DTOs ---
 
 export interface AbsenceResponse {
     id: string;

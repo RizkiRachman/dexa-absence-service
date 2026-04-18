@@ -1,12 +1,12 @@
-import {UpdateProfileInput} from '../dtos/profiles.dto';
+import {UpdateProfileRequest} from '../dtos/profiles.dto';
 import {ErrorDetail} from '@/shared/dtos/dto';
 import {ObjectValidation} from '@/shared/utils/validation/objectValidation';
 import {ImageValidation} from "@/modules/employee/validations/image.validation";
 
 export class UpdateProfileValidation {
-    private readonly input: UpdateProfileInput;
+    private readonly input: UpdateProfileRequest;
 
-    constructor(input: UpdateProfileInput) {
+    constructor(input: UpdateProfileRequest) {
         this.input = input;
     }
 
@@ -28,7 +28,7 @@ export class UpdateProfileValidation {
         return errors;
     }
 
-    static validateOrThrow(input: UpdateProfileInput): void {
+    static validateOrThrow(input: UpdateProfileRequest): void {
         ObjectValidation.throwsIfArraysIsNotEmpty(new UpdateProfileValidation(input).validate());
     }
 }

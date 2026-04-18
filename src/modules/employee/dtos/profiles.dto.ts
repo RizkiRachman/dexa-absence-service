@@ -1,6 +1,9 @@
 import {Department} from "@prisma/client";
+import {CONSTANT} from "@/shared/utils/constant/common";
+import {ObjectValidation} from "@/shared/utils/validation/objectValidation";
+import {ROLES} from "@/shared/utils/constant/default";
 
-export interface UpdateProfileInput {
+export interface UpdateProfileRequest {
     phoneNumber?: string;
     profilePic?: string;
 }
@@ -18,7 +21,7 @@ export interface CreateEmployeeData {
     user: {
         email: string;
         passwordHash: string;
-        role: 'employee';
+        role: ROLES;
     };
     employee: {
         name: string;
@@ -51,7 +54,7 @@ export function buildCreateEmployeeData(input: CreateEmployeeRequest, passwordHa
         user: {
             email: input.email,
             passwordHash,
-            role: 'employee',
+            role: ROLES.EMPLOYEE,
         },
         employee: {
             name: input.username,
@@ -60,7 +63,7 @@ export function buildCreateEmployeeData(input: CreateEmployeeRequest, passwordHa
             ...(input.profilePic && {profilePic: input.profilePic}),
             position: input.position,
             departmentId: input.departmentId,
-            phoneNumber: '',
+            phoneNumber: CONSTANT.EMPTY_STRING,
         },
     };
 }
@@ -72,12 +75,12 @@ export function buildEmployeeResponse(employee: any): EmployeeResponse {
         name: employee.name,
         displayName: employee.displayName,
         email: employee.email,
-        profilePic: employee.profilePic ?? null,
+        profilePic: ObjectValidation.getOrReturnNull(employee.profilePic),
         position: employee.position,
         departmentId: employee.departmentId,
         phoneNumber: employee.phoneNumber,
         isDeleted: employee.isDeleted,
-        createdAt: employee.createdAt ? new Date(employee.createdAt).toISOString() : '',
-        updatedAt: employee.updatedAt ? new Date(employee.updatedAt).toISOString() : '',
+        createdAt: employee.createdAt ? new Date(employee.createdAt).toISOString() : CONSTANT.EMPTY_STRING,
+        updatedAt: employee.updatedAt ? new Date(employee.updatedAt).toISOString() : CONSTANT.EMPTY_STRING,
     };
 }

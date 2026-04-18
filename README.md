@@ -12,7 +12,6 @@ Employee absence management API built with Next.js, PostgreSQL, and RabbitMQ.
 - [Common Commands](#common-commands)
 - [ERD](#erd)
 - [Smoke Test](#smoke-test)
-- [What's Missing](#whats-missing)
 
 ---
 
@@ -244,21 +243,3 @@ To validate response schema, enable **Response validation** in the collection se
 
 ![Enable validation](docs/smoke-test/how%20to%20use/06.%20enabled%20validation%20to%20response.png)
 
----
-
-## What's Missing
-
-Things that would make this production-ready but aren't implemented yet:
-
-| Area | What's missing |
-|---|---|
-| **Testing** | No unit or integration tests — Jest is configured but no test files exist |
-| **Rate limiting** | No request throttling — API is open to brute-force on login |
-| **Refresh token** | Auth only issues an access token — no refresh flow, users must re-login after expiry |
-| **Dead letter queue** | Failed RabbitMQ messages are discarded silently — no retry or dead letter exchange |
-| **Health check** | No `/health` or `/ping` endpoint for uptime monitoring or load balancers |
-| **Profile picture upload** | `profilePic` field exists in the DB schema but no upload endpoint is implemented |
-| **Email notifications** | No email sent on leave request approval/rejection |
-| **Leave balance tracking** | `MAXIMUM_ALLOWED_LEAVES_PER_YEAR` is configured but not enforced |
-| **Docker setup** | `docker-compose.yml` only starts PostgreSQL and RabbitMQ — no container for the app itself |
-| **CI/CD** | No pipeline for automated lint, test, or deploy |
